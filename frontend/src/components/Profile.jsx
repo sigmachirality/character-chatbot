@@ -38,7 +38,7 @@ export default function Profile({
             onChange={handleChange}
             value={character}
           >
-            {Object.keys(characters).map(character => <option value={character}>
+            {Object.keys(characters).map(character => <option key={character} value={character}>
               {character}
             </option>)}
             <option value="Custom">{character === "Custom" ? characterName : "CUSTOM CHAR"}</option>

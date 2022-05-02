@@ -1,12 +1,39 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Axios from "axios"
 
-export default function Chatbox({ botCharacter = "the bot!" }) {
+const BASE_URL = "http://localhost:5000/chat"
+
+export default function Chatbox({ 
+  user, bot
+}) {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState([]);
+  const [disabled, setDisabled] = useState(false);
+
+  useEffect(() => {
+    setMessages([])
+  }, [user?.name, bot?.name])
   
-  const handleMessageSubmit = (event) => {
+  const handleMessageSubmitFactory = (chatInput, messages) => (event) => {
+    setDisabled(true);
     event.preventDefault();
+    const message = {
+      speaker: user?.name,
+      text: chatInput
+    }
+    Axios.post(BASE_URL, {
+      user,
+      bot,
+      messages: [...messages, message]
+    }).then(res => {
+      const newMessage = {
+        speaker: bot?.name,
+        text: res.data?.message
+      }
+      setMessages(prevMessages => [...prevMessages, message, newMessage])
+      setNewMessage("")
+      setDisabled(false);
+    })
   }
 
   const handleMessageChange = (event) => {
@@ -15,7 +42,7 @@ export default function Chatbox({ botCharacter = "the bot!" }) {
 
   return <div className="chat-area">
     <div className="chat-window" id="chatbox">
-      {messages.map(({ speaker, text}) => <div className={speaker}>
+      {messages.map(({ speaker, text }) => <div className={speaker === user?.name ? "human" : "bot"}>
         <p>{text}</p>
       </div>)}
     </div>
@@ -24,17 +51,19 @@ export default function Chatbox({ botCharacter = "the bot!" }) {
       <form
         id="userInput"
         className="chat-entry"
-        onSubmit={handleMessageSubmit}
+        onSubmit={handleMessageSubmitFactory(newMessage, messages)}
       >
         <label title="Text input for the user's message to the GPT-3 persona" id="textLabel">
           <input 
+            value={newMessage}
             type="text"
             name="human_input"
             id="textInput"
             onChange={handleMessageChange}
-            placeholder={`Chat with ${botCharacter}...`}
+            placeholder={`Chat with ${bot?.name}...`}
             required
-            autocomplete="off"
+            disabled={disabled}
+            autoComplete="off"
           />
         </label>
         <label title="Send button">

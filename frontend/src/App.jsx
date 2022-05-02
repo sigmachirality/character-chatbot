@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Profile from "./components/Profile"
 import Modal from "./components/Modal"
 import Chatbox from "./components/Chatbox"
+import characters from "./characters.json"
 
 function App() {
   const [userCharacter, setUserCharacter] = useState("Kirk");
@@ -21,6 +22,15 @@ function App() {
   const customBot = {
     name: customBotName,
     description: customBotDescription
+  }
+
+  const user = userCharacter === "Custom" ? customUser : {
+    ...characters[userCharacter],
+    name: userCharacter
+  }
+  const bot = botCharacter === "Custom" ? customBot : {
+    ...characters[botCharacter],
+    name: botCharacter
   }
 
   useEffect(() => {
@@ -76,6 +86,8 @@ function App() {
         <div className="col-span-3">
           <h1 className="ml-4 text-lg">Chatbox</h1>
           <Chatbox
+            user={user}
+            bot={bot}
             botCharacter={botCharacter}
           />
         </div>

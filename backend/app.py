@@ -3,18 +3,22 @@ import json
 import os
 from urllib.error import HTTPError
 import openai
-from flask import Flask, request
+from flask import Flask, request, jsonify
+from flask_cors import cross_origin
 ################################################################################
 
 # GLOBAL VARIABLES #############################################################
 app = Flask(__name__)  # runs the web server
 openai.api_key = os.getenv("OPENAI_API_KEY")  # store API in .env file
 
+model = "curie:ft-personal-2022-05-01-03-46-51"  # Fine-tuned GPT-3 model to query
+temperature = None  # GPT-3 parameter set on chatbot home page
 ################################################################################
 
 # CHATBOT API ##################################################################
 
-@app.route("/get", methods=["POST"])
+@app.route("/chat", methods=["POST"])
+@cross_origin()
 def get_bot_reply():
     """Queries GPT-3 API with human message and returns AI response.
 
@@ -27,68 +31,65 @@ def get_bot_reply():
     Returns:
         GPT-3 generation (AI response string).
     """
-    # Retrieve human_input populated by getResponse script in chatbot.html.
-    human_input = request.args.get("human_input")
-    prompt = generate_prompt(human_input)
+    json = request.json
+    user = json["user"]
+    bot = json["bot"]
+    messages = json["messages"]
+    prompt = generate_prompt(user, bot, messages)
 
     # Query OpenAI API for GPT-3 generation.
     global model
-    global temperature
     try:
-        if model == "text-davinci-002":
-            response = openai.Completion.create(
-                engine=model,
-                prompt=prompt,
-                temperature=temperature,
-                max_tokens=150,
-                stop=["AI:", "Human:", "\n"],
-            ).choices[0].text
-        else:
-            response = openai.Completion.create(
-                model=model,
-                prompt=prompt,
-                temperature=temperature,
-                max_tokens=150,
-                stop=["AI:", "Human:", "\n"],
-            ).choices[0].text
+        response = openai.Completion.create(
+            model=model,
+            prompt=prompt,
+            temperature=temperature,
+            max_tokens=150,
+            stop=[user["name"] + ":", bot["name"] + ":", "\n"],
+        ).choices[0].text
         is_successful = True
     except Exception as e:
         response = "ERROR: " + str(e)
         is_successful = False
 
-    # Update global variables
-    global prev_human
-    prev_human = human_input
-    global prev_bot
-    prev_bot = response
-
     output = {
-        "response": response,
+        "message": response,
         "success": is_successful,
     }
-
-    return json.dumps(output)
+    response = jsonify(output)
+    return response
 ################################################################################
 
 # HELPER METHODS ###############################################################
 
 
-def generate_prompt(human_input):
+def generate_prompt(user, bot, messages):
     """Generates the prompt for the GPT-3 generation.
 
     Args:
-        human_input: the current utterance string from the user.
+        user: a dictionary containing the name and description of the user character.
+        bot: a dictionary containing the name and description of the bot character.
+        messages: a collection containing previous conversation messages
 
     Returns:
         GPT-3 prompt with the AI persona and past three turns.
     """
-    global persona
-    global prev_human
-    global prev_bot
-    return """The following is a conversation with an AI persona. The AI is {}.
-    
-    Human: {}
-    AI: {}
-    Human: {}
-    AI:""".format(persona, prev_human, prev_bot, human_input)
+    user_name, user_description = user["name"], user["description"]
+    bot_name, bot_description = bot["name"], bot["description"]
+    messages_text = ""
+    for message in messages:
+        speaker, text = message["speaker"], message["text"]
+        messages_text = messages_text + "{}: {}\n".format(speaker, text)
+    return """Characters:
+
+* {} - {}
+* {} - {}
+
+Conversation:
+{}{}:""".format(
+        user_name, user_description,
+        bot_name, bot_description,
+        messages_text,
+        bot_name
+    )
 ################################################################################
