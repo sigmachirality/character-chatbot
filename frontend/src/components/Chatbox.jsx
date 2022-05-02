@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import Axios from "axios"
 
-const BASE_URL = "http://localhost:5000/chat"
+const BASE_URL = "https://character-chatbot.herokuapp.com/chat"
 
 export default function Chatbox({ 
   user, bot
